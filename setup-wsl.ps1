@@ -91,7 +91,7 @@ sparseVhd=true
 }
 
 # -----------------------------------------------------------
-# Step 5: Copy install script into WSL2
+# Step 5: Copy install script into WSL2 home directory
 # -----------------------------------------------------------
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $installSrc = Join-Path $scriptDir "install.sh"
@@ -99,14 +99,40 @@ $installSrc = Join-Path $scriptDir "install.sh"
 # Check if Ubuntu-24.04 is available to copy into
 $wslRunning = wsl -l -q 2>$null | Where-Object { $_ -match "Ubuntu-24.04" }
 if ($wslRunning -and (Test-Path $installSrc)) {
-    Write-Host "[+] Creating /claude-workspace inside WSL2 and copying install.sh..." -ForegroundColor Green
-    wsl -d Ubuntu-24.04 -- bash -c "sudo mkdir -p /claude-workspace && sudo chown `$(whoami) /claude-workspace"
-    wsl -d Ubuntu-24.04 -- bash -c "cp '$(wslpath -u "$installSrc" 2>$null || echo "/mnt/c${installSrc.Replace('\','/').Replace('C:','')}")' /claude-workspace/install.sh"
-    Write-Host "[+] install.sh copied to /claude-workspace/ inside WSL2" -ForegroundColor Green
+    Write-Host "[+] Copying install.sh to WSL2 home directory..." -ForegroundColor Green
+    $wslHome = wsl -d Ubuntu-24.04 -- bash -c "echo `$HOME" 2>$null
+    if ($wslHome) {
+        wsl -d Ubuntu-24.04 -- bash -c "cp '$(wslpath -u "$installSrc" 2>$null || echo "/mnt/c${installSrc.Replace('\','/').Replace('C:','')}")' ~/install.sh"
+        Write-Host "[+] install.sh copied to ~/install.sh inside WSL2" -ForegroundColor Green
+    } else {
+        Write-Host "[!] Could not determine WSL2 home directory. Copy install.sh manually." -ForegroundColor Yellow
+    }
 } else {
-    Write-Host "[!] Ubuntu 24.04 not yet launched. After first launch, run inside WSL2:" -ForegroundColor Yellow
-    Write-Host "    sudo mkdir -p /claude-workspace && sudo chown `$(whoami) /claude-workspace" -ForegroundColor Yellow
-    Write-Host "    Then copy install.sh into /claude-workspace/" -ForegroundColor Yellow
+    Write-Host "[!] Ubuntu 24.04 not yet launched. After first launch, copy install.sh" -ForegroundColor Yellow
+    Write-Host "    into the WSL2 home directory manually." -ForegroundColor Yellow
+}
+
+# -----------------------------------------------------------
+# Step 6: Create claude-workspace symlink on Windows
+# -----------------------------------------------------------
+$symlinkPath = "$env:USERPROFILE\claude-workspace"
+if (-not (Test-Path $symlinkPath)) {
+    if ($wslRunning) {
+        Write-Host "[+] Creating claude-workspace symlink in $env:USERPROFILE..." -ForegroundColor Green
+        $wslTarget = "\\wsl$\Ubuntu-24.04\home\claude"
+        cmd /c mklink /d "$symlinkPath" "$wslTarget" 2>$null
+        if ($?) {
+            Write-Host "[+] Symlink created: $symlinkPath -> $wslTarget" -ForegroundColor Green
+        } else {
+            Write-Host "[!] Could not create symlink. After first launch, run as Administrator:" -ForegroundColor Yellow
+            Write-Host "    cmd /c mklink /d `"$symlinkPath`" `"$wslTarget`"" -ForegroundColor Yellow
+        }
+    } else {
+        Write-Host "[!] WSL2 not running yet. After first launch, run as Administrator:" -ForegroundColor Yellow
+        Write-Host "    cmd /c mklink /d `"$symlinkPath`" `"\\wsl$\Ubuntu-24.04\home\claude`"" -ForegroundColor Yellow
+    }
+} else {
+    Write-Host "[+] claude-workspace symlink already exists at $symlinkPath" -ForegroundColor Green
 }
 
 # -----------------------------------------------------------
@@ -117,10 +143,10 @@ Write-Host "============================================" -ForegroundColor Green
 Write-Host "  Windows Setup Complete" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "[+] Workspace lives inside WSL2 at /claude-workspace/" -ForegroundColor Green
+Write-Host "[+] Workspace: /home/claude inside WSL2, shared at $env:USERPROFILE\claude-workspace" -ForegroundColor Green
 Write-Host ""
 Write-Host "[!] Next steps:" -ForegroundColor Yellow
 Write-Host "    1. Launch Ubuntu 24.04 from Start Menu (first time: create user 'claude')" -ForegroundColor Yellow
 Write-Host "    2. Inside WSL2, run:" -ForegroundColor Yellow
-Write-Host "       bash /claude-workspace/install.sh" -ForegroundColor Yellow
+Write-Host "       bash ~/install.sh" -ForegroundColor Yellow
 Write-Host ""

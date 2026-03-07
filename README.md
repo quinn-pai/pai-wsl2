@@ -10,7 +10,7 @@ This is the Windows/WSL2 adaptation of [pai-lima](https://github.com/quinn-pai/p
 - **Audio** — WSLg passthrough (Windows 11) or PulseAudio TCP bridge (Windows 10)
 - **PAI v4.0** — [Personal AI Infrastructure](https://github.com/danielmiessler/Personal_AI_Infrastructure)
 - **PAI Companion** — [Web portal, file exchange, context enhancements](https://github.com/chriscantey/pai-companion) (portal served via Bun, not Docker)
-- **Shared folder** — `/claude-workspace` inside the WSL2 instance
+- **Shared folder** — `/home/claude` shared with the Windows host as `~/claude-workspace`
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 #    (first launch: create user 'claude' when prompted)
 
 # 4. Inside WSL2, run the install script
-bash /claude-workspace/install.sh
+bash ~/install.sh
 ```
 
 ## Windows Setup (setup-wsl.ps1)
@@ -43,7 +43,8 @@ The PowerShell script handles the Windows side:
 1. **Enables WSL2** — activates the WSL and Virtual Machine Platform features
 2. **Installs Ubuntu 24.04** — via `wsl --install -d Ubuntu-24.04`
 3. **Creates .wslconfig** — sets 4 CPUs, 4GB RAM, 2GB swap
-4. **Creates /claude-workspace** — inside the WSL2 instance and copies `install.sh` there
+4. **Copies install.sh** — into the WSL2 home directory
+5. **Creates claude-workspace symlink** — `%USERPROFILE%\claude-workspace` → `\\wsl$\Ubuntu-24.04\home\claude`
 
 > **Note:** If the Virtual Machine Platform feature was just enabled, you must reboot and re-run the script.
 
@@ -52,7 +53,7 @@ The PowerShell script handles the Windows side:
 From inside WSL2 (Ubuntu 24.04):
 
 ```bash
-bash /claude-workspace/install.sh
+bash ~/install.sh
 ```
 
 The script installs (in order):
@@ -173,7 +174,7 @@ wsl --import Ubuntu-24.04-restored C:\WSL\restored pai-backup.tar
 ## Directory Layout (inside WSL2)
 
 ```
-/claude-workspace/   Workspace (native WSL2 filesystem)
+~/                   Home directory (/home/claude), shared with host as claude-workspace
 ~/portal/            Companion web portal (served on :8080)
 ~/exchange/          File exchange directory
 ~/work/              Project workspace (git tracked)
@@ -189,7 +190,7 @@ wsl --import Ubuntu-24.04-restored C:\WSL\restored pai-backup.tar
 | VM layer | Lima + VZ framework | WSL2 + Hyper-V |
 | Architecture | ARM64 (Apple Silicon) | x86_64 (typically) |
 | Audio | VirtIO sound device | WSLg (Win 11) or PulseAudio TCP (Win 10) |
-| Shared folder | Lima mount (`~/claude-workspace`) | Native WSL2 filesystem (`/claude-workspace`) |
+| Shared folder | Lima mount (`~/claude-workspace`) | `/home/claude` via symlink (`~/claude-workspace` on host) |
 | Port forwarding | Manual (VM IP) | Automatic (localhost) |
 | VM config | `linux.yaml` | `.wslconfig` |
 | Setup script | `brew install lima` | `setup-wsl.ps1` (PowerShell) |

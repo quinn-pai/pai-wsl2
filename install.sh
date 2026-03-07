@@ -3,7 +3,7 @@
 # Run this INSIDE the WSL2 Ubuntu instance.
 #
 # Usage:
-#   bash /claude-workspace/install.sh
+#   bash ~/install.sh
 #
 # This script installs:
 #   1. System packages
@@ -30,17 +30,6 @@ echo "============================================"
 echo "  PAI + PAI Companion Installer (WSL2)"
 echo "============================================"
 echo -e "${NC}"
-
-# -----------------------------------------------------------
-# Ensure /claude-workspace exists
-# -----------------------------------------------------------
-if [ ! -d /claude-workspace ]; then
-    sudo mkdir -p /claude-workspace
-    sudo chown "$(whoami)" /claude-workspace
-    log "Created /claude-workspace"
-else
-    log "Workspace exists: /claude-workspace"
-fi
 
 # -----------------------------------------------------------
 # Step 1: System packages
@@ -302,8 +291,27 @@ log "Portal:     http://localhost:8080"
 log "Exchange:   ~/exchange/"
 log "Work:       ~/work/"
 log "Upstream:   ~/upstream/"
-log "Workspace:  /claude-workspace"
+log "Home:       /home/claude (shared with host as ~/claude-workspace)"
 echo ""
+
+# -----------------------------------------------------------
+# Create Windows symlink if not already present
+# -----------------------------------------------------------
+WIN_USERPROFILE=$(cmd.exe /c "echo %USERPROFILE%" 2>/dev/null | tr -d '\r')
+if [ -n "$WIN_USERPROFILE" ]; then
+    SYMLINK_PATH="$WIN_USERPROFILE\\claude-workspace"
+    WSL_TARGET="\\\\wsl\$\\Ubuntu-24.04\\home\\claude"
+    if [ ! -d "$(wslpath "$SYMLINK_PATH" 2>/dev/null)" ]; then
+        log "Creating Windows symlink: $SYMLINK_PATH -> $WSL_TARGET"
+        cmd.exe /c mklink /d "$SYMLINK_PATH" "$WSL_TARGET" 2>/dev/null && \
+            log "Symlink created successfully." || \
+            warn "Could not create symlink (may need Administrator). Run in an elevated prompt:"
+            warn "  cmd /c mklink /d \"$SYMLINK_PATH\" \"$WSL_TARGET\""
+    else
+        log "Windows symlink already exists at $SYMLINK_PATH"
+    fi
+fi
+
 warn "Next steps:"
 warn "  1. Run 'claude' to authenticate with your Anthropic API key"
 warn "  2. Visit http://localhost:8080 in your Windows browser"
