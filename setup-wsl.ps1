@@ -91,26 +91,22 @@ sparseVhd=true
 }
 
 # -----------------------------------------------------------
-# Step 5: Create shared workspace
-# -----------------------------------------------------------
-$workspace = "$env:USERPROFILE\claude-workspace"
-if (-not (Test-Path $workspace)) {
-    New-Item -ItemType Directory -Path $workspace | Out-Null
-    Write-Host "[+] Created shared workspace: $workspace" -ForegroundColor Green
-} else {
-    Write-Host "[+] Shared workspace already exists: $workspace" -ForegroundColor Green
-}
-
-# -----------------------------------------------------------
-# Step 6: Copy install script to workspace
+# Step 5: Copy install script into WSL2
 # -----------------------------------------------------------
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $installSrc = Join-Path $scriptDir "install.sh"
-if (Test-Path $installSrc) {
-    Copy-Item -Path $installSrc -Destination "$workspace\install.sh" -Force
-    Write-Host "[+] Copied install.sh to $workspace" -ForegroundColor Green
+
+# Check if Ubuntu-24.04 is available to copy into
+$wslRunning = wsl -l -q 2>$null | Where-Object { $_ -match "Ubuntu-24.04" }
+if ($wslRunning -and (Test-Path $installSrc)) {
+    Write-Host "[+] Creating /claude-workspace inside WSL2 and copying install.sh..." -ForegroundColor Green
+    wsl -d Ubuntu-24.04 -- bash -c "sudo mkdir -p /claude-workspace && sudo chown `$(whoami) /claude-workspace"
+    wsl -d Ubuntu-24.04 -- bash -c "cp '$(wslpath -u "$installSrc" 2>$null || echo "/mnt/c${installSrc.Replace('\','/').Replace('C:','')}")' /claude-workspace/install.sh"
+    Write-Host "[+] install.sh copied to /claude-workspace/ inside WSL2" -ForegroundColor Green
 } else {
-    Write-Host "[!] install.sh not found in script directory. Copy it manually to $workspace" -ForegroundColor Yellow
+    Write-Host "[!] Ubuntu 24.04 not yet launched. After first launch, run inside WSL2:" -ForegroundColor Yellow
+    Write-Host "    sudo mkdir -p /claude-workspace && sudo chown `$(whoami) /claude-workspace" -ForegroundColor Yellow
+    Write-Host "    Then copy install.sh into /claude-workspace/" -ForegroundColor Yellow
 }
 
 # -----------------------------------------------------------
@@ -121,11 +117,10 @@ Write-Host "============================================" -ForegroundColor Green
 Write-Host "  Windows Setup Complete" -ForegroundColor Green
 Write-Host "============================================" -ForegroundColor Green
 Write-Host ""
-Write-Host "[+] Shared workspace: $workspace" -ForegroundColor Green
-Write-Host "[+] Inside WSL2 this is: /mnt/c/Users/$env:USERNAME/claude-workspace" -ForegroundColor Green
+Write-Host "[+] Workspace lives inside WSL2 at /claude-workspace/" -ForegroundColor Green
 Write-Host ""
 Write-Host "[!] Next steps:" -ForegroundColor Yellow
 Write-Host "    1. Launch Ubuntu 24.04 from Start Menu (first time: create user 'claude')" -ForegroundColor Yellow
 Write-Host "    2. Inside WSL2, run:" -ForegroundColor Yellow
-Write-Host "       bash /mnt/c/Users/$env:USERNAME/claude-workspace/install.sh" -ForegroundColor Yellow
+Write-Host "       bash /claude-workspace/install.sh" -ForegroundColor Yellow
 Write-Host ""

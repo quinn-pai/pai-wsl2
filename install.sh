@@ -3,7 +3,7 @@
 # Run this INSIDE the WSL2 Ubuntu instance.
 #
 # Usage:
-#   bash /mnt/c/Users/<YourWindowsUser>/claude-workspace/install.sh
+#   bash /claude-workspace/install.sh
 #
 # This script installs:
 #   1. System packages
@@ -32,20 +32,14 @@ echo "============================================"
 echo -e "${NC}"
 
 # -----------------------------------------------------------
-# Detect Windows username for shared workspace path
+# Ensure /claude-workspace exists
 # -----------------------------------------------------------
-WIN_USER=$(cmd.exe /C "echo %USERNAME%" 2>/dev/null | tr -d '\r' || true)
-if [ -z "$WIN_USER" ]; then
-    # Fallback: try to detect from /mnt/c/Users
-    WIN_USER=$(ls /mnt/c/Users/ | grep -v -E "^(Public|Default|Default User|All Users)$" | head -1)
-fi
-
-WORKSPACE="/mnt/c/Users/${WIN_USER}/claude-workspace"
-if [ -d "$WORKSPACE" ]; then
-    log "Detected shared workspace: $WORKSPACE"
+if [ ! -d /claude-workspace ]; then
+    sudo mkdir -p /claude-workspace
+    sudo chown "$(whoami)" /claude-workspace
+    log "Created /claude-workspace"
 else
-    warn "Shared workspace not found at $WORKSPACE"
-    warn "Create it on Windows: mkdir %USERPROFILE%\\claude-workspace"
+    log "Workspace exists: /claude-workspace"
 fi
 
 # -----------------------------------------------------------
@@ -294,13 +288,6 @@ else
     warn "Bun not found. Skipping Playwright."
 fi
 
-# -----------------------------------------------------------
-# Step 8: Create symlink for shared workspace convenience
-# -----------------------------------------------------------
-if [ -d "$WORKSPACE" ] && [ ! -e "/claude-workspace" ]; then
-    sudo ln -sf "$WORKSPACE" /claude-workspace
-    log "Created symlink: /claude-workspace -> $WORKSPACE"
-fi
 
 # -----------------------------------------------------------
 # Done
@@ -315,7 +302,7 @@ log "Portal:     http://localhost:8080"
 log "Exchange:   ~/exchange/"
 log "Work:       ~/work/"
 log "Upstream:   ~/upstream/"
-log "Workspace:  /claude-workspace (shared with Windows)"
+log "Workspace:  /claude-workspace"
 echo ""
 warn "Next steps:"
 warn "  1. Run 'claude' to authenticate with your Anthropic API key"

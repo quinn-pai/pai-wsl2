@@ -10,7 +10,7 @@ This is the Windows/WSL2 adaptation of [pai-lima](https://github.com/quinn-pai/p
 - **Audio** — WSLg passthrough (Windows 11) or PulseAudio TCP bridge (Windows 10)
 - **PAI v4.0** — [Personal AI Infrastructure](https://github.com/danielmiessler/Personal_AI_Infrastructure)
 - **PAI Companion** — [Web portal, file exchange, context enhancements](https://github.com/chriscantey/pai-companion) (portal served via Bun, not Docker)
-- **Shared folder** — `%USERPROFILE%\claude-workspace` on Windows ↔ `/claude-workspace` in WSL2
+- **Shared folder** — `/claude-workspace` inside the WSL2 instance
 
 ## Prerequisites
 
@@ -33,7 +33,7 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 #    (first launch: create user 'claude' when prompted)
 
 # 4. Inside WSL2, run the install script
-bash /mnt/c/Users/<YourWindowsUser>/claude-workspace/install.sh
+bash /claude-workspace/install.sh
 ```
 
 ## Windows Setup (setup-wsl.ps1)
@@ -43,8 +43,7 @@ The PowerShell script handles the Windows side:
 1. **Enables WSL2** — activates the WSL and Virtual Machine Platform features
 2. **Installs Ubuntu 24.04** — via `wsl --install -d Ubuntu-24.04`
 3. **Creates .wslconfig** — sets 4 CPUs, 4GB RAM, 2GB swap
-4. **Creates shared workspace** — `%USERPROFILE%\claude-workspace`
-5. **Copies install.sh** — into the shared workspace for WSL2 access
+4. **Creates /claude-workspace** — inside the WSL2 instance and copies `install.sh` there
 
 > **Note:** If the Virtual Machine Platform feature was just enabled, you must reboot and re-run the script.
 
@@ -53,7 +52,7 @@ The PowerShell script handles the Windows side:
 From inside WSL2 (Ubuntu 24.04):
 
 ```bash
-bash /mnt/c/Users/<YourWindowsUser>/claude-workspace/install.sh
+bash /claude-workspace/install.sh
 ```
 
 The script installs (in order):
@@ -65,7 +64,6 @@ The script installs (in order):
 5. **PAI v4.0** — clones the latest release and runs the installer in CLI mode
 6. **PAI Companion** — clones the companion repo, sets up portal/exchange/work directories, starts the portal web server on port 8080 using Bun (no Docker)
 7. **Playwright** — browser automation with Chromium
-8. **Workspace symlink** — `/claude-workspace` → shared Windows folder
 
 ### After installation
 
@@ -175,7 +173,7 @@ wsl --import Ubuntu-24.04-restored C:\WSL\restored pai-backup.tar
 ## Directory Layout (inside WSL2)
 
 ```
-/claude-workspace/   Symlink to Windows shared folder
+/claude-workspace/   Workspace (native WSL2 filesystem)
 ~/portal/            Companion web portal (served on :8080)
 ~/exchange/          File exchange directory
 ~/work/              Project workspace (git tracked)
@@ -191,7 +189,7 @@ wsl --import Ubuntu-24.04-restored C:\WSL\restored pai-backup.tar
 | VM layer | Lima + VZ framework | WSL2 + Hyper-V |
 | Architecture | ARM64 (Apple Silicon) | x86_64 (typically) |
 | Audio | VirtIO sound device | WSLg (Win 11) or PulseAudio TCP (Win 10) |
-| Shared folder | Lima mount (`~/claude-workspace`) | Windows drive mount (`/mnt/c/...`) |
+| Shared folder | Lima mount (`~/claude-workspace`) | Native WSL2 filesystem (`/claude-workspace`) |
 | Port forwarding | Manual (VM IP) | Automatic (localhost) |
 | VM config | `linux.yaml` | `.wslconfig` |
 | Setup script | `brew install lima` | `setup-wsl.ps1` (PowerShell) |
@@ -207,8 +205,6 @@ wsl --import Ubuntu-24.04-restored C:\WSL\restored pai-backup.tar
 **No audio (Windows 10):** You need PulseAudio running on Windows with TCP module loaded. See the Audio section above.
 
 **Portal not accessible:** Check if the service is running: `systemctl --user status pai-portal`. If systemd isn't enabled, use `pai-portal-start`.
-
-**Slow filesystem on /mnt/c/:** This is expected — cross-OS filesystem access is slow in WSL2. Keep working files inside the WSL2 filesystem (`~/work/`) and use `/claude-workspace` only for file exchange.
 
 **DNS resolution fails:** Add to `/etc/wsl.conf`:
 ```ini
